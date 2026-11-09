@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bnos}
+      POSTGRES_USER: ${POSTGRES_USER:-bnos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-bnos} -d ${POSTGRES_DB:-bnos}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DEPLOYMENT_MODE: self-hosted
+      DATABASE_URL: postgres://${POSTGRES_USER:-bnos}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-bnos}
+      HOST: 0.0.0.0
+      PORT: 8080
+      AUTO_MIGRATE: 'true'
+      SERVICE_ID: ${SERVICE_ID:-bnos-data-service}
+      SERVICE_NAME: ${SERVICE_NAME:-BNOS Data Service}
+      SERVICE_AUDIENCE: ${SERVICE_AUDIENCE:-http://localhost:8080}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - '8080:8080'
+    restart: unless-stopped
+
+volumes:
+  pgdata:
